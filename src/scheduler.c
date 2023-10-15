@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include "simulation.h"
+#include <limits.h>
 #define HIGH_PRIORITY 0
 #define MEDIUM_PRIORITY 1
 #define LOW_PRIORITY 2
@@ -15,11 +16,11 @@ int fifo_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, i
 }
 
 // Función SJF (Shortest Job Next / Shortest Job First) con I/O
-int sjf_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, int curr_pid) {   
+int sjf_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, int curr_pid) { 
 
     if(curr_pid == -1) 
-        return curr_pid;
-
+        return procs_info[0].pid;
+        
     int shortest_pid = -1;
     int shortest_duration = INT_MAX;
 
@@ -38,7 +39,7 @@ int sjf_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, in
 int stcf(proc_info_t *procs_info, int procs_count, int curr_time, int curr_pid) {
 
     if(curr_pid == -1) 
-        return curr_pid;
+        return procs_info[0].pid;
 
 
     int st = INT_MAX;
@@ -54,25 +55,8 @@ int stcf(proc_info_t *procs_info, int procs_count, int curr_time, int curr_pid) 
   }
 
   return pid;
-
 }
 
-// Función de Prioridad Estática con I/O
-int priority_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, int curr_pid) {
-    int highest_priority_pid = -1;
-    int highest_priority = INT_MIN;
-
-    for (int i = 0; i < procs_count; i++) {
-        int pid = procs_info[i].pid;
-        int priority = get_priority(pid);
-        if (!procs_info[i].on_io && priority > highest_priority) {
-            highest_priority = priority;
-            highest_priority_pid = pid;
-        }
-    }
-
-    return highest_priority_pid;
-}
 
 // Función Round Robin con I/O
 int round_robin_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, int curr_pid) {
@@ -90,7 +74,7 @@ int round_robin_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_
                return curr_pid;
             }
 
-            return i < procs_count ? procs_info[i + 1].pid : procs_info[0].pid;
+            return i != procs_count - 1 ? procs_info[i + 1].pid : procs_info[0].pid;  
         }
     }
 
@@ -122,7 +106,7 @@ void enqueue(MLFQ *mlfq, int priority, int pid) {
     }
 }
 
-int get_priority(int time) {
+int get_my_priority(int time) {
     if (time < 5) {
         return HIGH_PRIORITY;
     } else if (time < 10) {
@@ -141,7 +125,7 @@ int mlfq_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, i
     for (int i = 0; i < procs_count; i++) {
         int pid = procs_info[i].pid;
         if (!procs_info[i].on_io) {
-            int priority = get_priority(curr_time - procs_info[i].start_time);
+            int priority = get_my_priority(procs_info[i].executed_time);
             enqueue(&mlfq, priority, pid);
         }
     }
@@ -160,9 +144,9 @@ int mlfq_scheduler_io(proc_info_t *procs_info, int procs_count, int curr_time, i
 schedule_action_t get_scheduler(const char *name) {
     if (strcmp(name, "fifo_io") == 0) return *fifo_scheduler_io;
     if (strcmp(name, "sjf_io") == 0) return *sjf_scheduler_io;
-    if (strcmp(name, "priority_io") == 0) return *priority_scheduler_io;
     if (strcmp(name, "round_robin_io") == 0) return *round_robin_scheduler_io;
     if (strcmp(name, "mlfq_io") == 0) return *mlfq_scheduler_io;
+    if (strcmp(name, "stcf") == 0) return *stcf;
 
     fprintf(stderr, "Invalid scheduler name: '%s'\n", name);
     exit(1);
